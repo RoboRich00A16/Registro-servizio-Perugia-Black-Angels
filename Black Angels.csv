@@ -1,5 +1,5 @@
-Agente,Inizio servizio,Fine servizio,Ore,Retribuito?,Annotazioni
-Fabrizio Biancalana,2024-10-13T15:00:00+02:00,2024-10-13T22:00:00+02:00,7 ore,No,Controllare che gli orari siano corretti
-Fabrizio Biancalana,2024-10-17T15:30:00+02:00,2024-10-17T22:00:00+02:00,6 ore e 30 minuti,No,
-Ludovico Pompili,2024-10-17T18:30:00+02:00,2024-10-17T22:00:00+02:00,3 ore e 30 minuti,No,
-Riccardo Pesciarelli,2024-10-17T18:30:00+02:00,2024-10-17T22:00:00+02:00,3 ore e 30 minuti,No,
+Agente,Inizio servizio,Fine servizio,Retribuito?,Annotazioni
+Fabrizio Biancalana,2024-10-13T15:00:00+02:00,2024-10-13T22:00:00+02:00,No,Controllare che gli orari siano corretti
+Fabrizio Biancalana,2024-10-17T15:30:00+02:00,2024-10-17T22:00:00+02:00,No,
+Ludovico Pompili,2024-10-17T18:30:00+02:00,2024-10-17T22:00:00+02:00,No,
+Riccardo Pesciarelli,2024-10-17T18:30:00+02:00,2024-10-17T22:00:00+02:00,No,
