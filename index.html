@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="it-IT">
+
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width" />
+	<title>Registro servizi Perugia Black Angels</title>
+	<style>
+		html {
+			font-family: sans-serif;
+		}
+
+		h1,
+		h2 {
+			text-align: center;
+		}
+
+		th {
+			cursor: pointer;
+		}
+
+		time {
+			font-family: monospace;
+		}
+		
+		.error-message {
+			color: crimson;
+		}
+	</style>
+</head>
+
+<body>
+	<h1>🏐 Registro dei turni 🏐</h1>
+	<h2>Partite della pallavolo femminile Perugia Black Angels</h2>
+
+	<p id="status-message">Caricamento dati…</p>
+
+	<table id="shifts-register"></table>
+
+	<script>
+		const url = "https://raw.githubusercontent.com/RoboRich00A16/Registro-servizio-Perugia-Black-Angels/refs/heads/main/Black%20Angels.csv";
+		const statusMessage = document.getElementById("status-message");
+		const table = document.getElementById("shifts-register");
+
+		// This will parse a delimited string into an array of arrays. The default delimiter is the comma, but this can be overriden in the second argument.
+		function CSVToArray(strData, strDelimiter) {
+			// Check to see if the delimiter is defined. If not, then default to comma.
+			strDelimiter = (strDelimiter || ",");
+
+			// Create a regular expression to parse the CSV values.
+			var objPattern = new RegExp(
+				(
+					// Delimiters.
+					"(\\" + strDelimiter + "|\\r?\\n|\\r|^)" +
+
+					// Quoted fields.
+					"(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|" +
+
+					// Standard fields.
+					"([^\"\\" + strDelimiter + "\\r\\n]*))"
+				),
+				"gi"
+			);
+
+
+			// Create an array to hold our data. Give the array a default empty first row.
+			var arrData = [[]];
+
+			// Create an array to hold our individual pattern matching groups.
+			var arrMatches = null;
+
+
+			// Keep looping over the regular expression matches until we can no longer find a match.
+			while (arrMatches = objPattern.exec(strData)) {
+
+				// Get the delimiter that was found.
+				var strMatchedDelimiter = arrMatches[1];
+
+				// Check to see if the given delimiter has a length (is not the start of string) and if it matches field delimiter. If id does not, then we know that this delimiter is a row delimiter.
+				if (
+					strMatchedDelimiter.length &&
+					(strMatchedDelimiter != strDelimiter)
+				) {
+
+					// Since we have reached a new row of data, add an empty row to our data array.
+					arrData.push([]);
+
+				}
+
+
+				// Now that we have our delimiter out of the way, let's check to see which kind of value we captured (quoted or unquoted).
+				if (arrMatches[2]) {
+
+					// We found a quoted value. When we capture this value, unescape any double quotes.
+					var strMatchedValue = arrMatches[2].replace(
+						new RegExp("\"\"", "g"),
+						"\""
+					);
+
+				} else {
+
+					// We found a non-quoted value.
+					var strMatchedValue = arrMatches[3];
+
+				}
+
+
+				// Now that we have our value string, let's add it to the data array.
+				arrData[arrData.length - 1].push(strMatchedValue);
+			}
+
+			// Return the parsed data.
+			return (arrData);
+		};
+
+		// This will edit the array in place.
+		function addComputedPropertiesToArray(arrayData) {
+			arrayData[0].splice(3, 0, "Ore");
+
+			for (let i = 1; i < arrayData.length; i++) {
+				const element = arrayData[i];
+				const shiftStart = new Date(element[1]);
+				const shiftEnd = new Date(element[2]);
+
+
+				let shiftDuration = shiftEnd - shiftStart;
+				let shiftDurationDescription = null;
+				
+				// We can safely assume the shift took place in the same timezone.
+				if (shiftDuration > (1000 * 60 * 60 * 24)) {
+					shiftDurationDescription = "Più di un giorno";
+				} else {
+					// Transform shiftDuration to a valid HTML duration.
+					const ms = shiftDuration % 1000;
+					shiftDuration = (shiftDuration - ms) / 1000;
+					const s = shiftDuration % 60;
+					shiftDuration = (shiftDuration - s) / 60;
+					const min = shiftDuration % 60;
+					const h = (shiftDuration - min) / 60;
+					
+					shiftDurationDescription = `PT${h}H${min}M`;
+				};
+
+				// Insert the new duration into the array, replacing the old duration.
+				element.splice(3, 0, shiftDurationDescription);
+			};
+		};
+
+		function transformDuration(duration) {
+			// Use a regular expression to extract hours and minutes
+			const regex = /^PT(?:(\d+)H)?(?:(\d+)M)?/;
+			const matches = duration.match(regex);
+
+			// Extract hours and minutes from the matches
+			const hours = matches[1] ? parseInt(matches[1], 10) : 0;
+			const minutes = matches[2] ? parseInt(matches[2], 10) : 0;
+
+			// Construct the result string
+			let result = "";
+			if (hours > 0) {
+				result += `${hours} ore`;
+			};
+
+			if (minutes > 0) {
+				if (result) {
+					result += " ";
+				};
+				result += `${minutes} minuti`;
+			};
+
+			return result.trim();
+		};
+		
+		function getCellValue(tr, index) {
+			return tr.children[index].innerText || tr.children[index].textContent;
+		};
+		
+		// Returns a function responsible for sorting a specific column index 
+		// (index = columnIndex, desc = descending order?).
+		function comparer(index, desc) { 
+		
+	    	// This is used by the array.sort() function.
+	    	return function(a, b) { 
+
+    		    // This is a transient function, that is called straight away. It allows passing in different order of args, based on the ascending/descending order.
+		        return function(v1, v2) {
+		
+		            // sort based on a numeric or localeCompare, based on type.
+		            return (v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2)) 
+		                ? v1 - v2 
+		                : v1.toString().localeCompare(v2);
+		        }(getCellValue(desc ? b : a, index), getCellValue(desc ? a : b, index));
+		    };
+		};
+		
+		fetch(url)
+			.then((response) => {
+				if (!response.ok) {
+					throw new Error(`Errore HTTP ${response.status}\n${response.statusText}`);
+				}
+
+				return (response.text());
+			})
+			.then((CSVtext) => {
+				// Remove the loading placeholder.
+				statusMessage.remove();
+
+				// Prepare the table elements.
+				const tableHead = document.createElement("thead");
+				const tableBody = document.createElement("tbody");
+
+				// Get the array of values from the recieved CSV.
+				const CSVArray = CSVToArray(CSVtext);
+
+				// Add the computed properties to the newly recieved array.
+				addComputedPropertiesToArray(CSVArray);
+
+				// Format the first row of the table, which is a header.
+				const headerRow = document.createElement("tr");
+				for (let i = 0; i < CSVArray[0].length; i++) {
+					const cell = document.createElement("th");
+					cell.addEventListener("click", (() => {
+						// Locate the table in the DOM.
+						const shiftsTable = document.getElementById("shifts-register").tBodies[0];
+
+						// Rearrange all the rows in the table body.
+						Array.from(shiftsTable.querySelectorAll("tr"))
+							.sort(comparer(Array.from(cell.parentNode.children).indexOf(cell), this.asc = !this.asc))
+							.forEach((tr) => shiftsTable.appendChild(tr));
+					}));
+
+					cell.textContent = CSVArray[0][i];
+
+					headerRow.appendChild(cell);
+				};
+
+				// Add the header row to the head.
+				tableHead.appendChild(headerRow);
+
+				// Add the head to the table.
+				table.appendChild(tableHead);
+
+				// Format the rest of the table data.
+				for (let i = 1; i < CSVArray.length; i++) {
+					const row = document.createElement("tr");
+					const rowData = CSVArray[i];
+
+					for (let j = 0; j < rowData.length; j++) {
+						const cell = document.createElement("td");
+						const element = rowData[j];
+
+						// Depending on the type of column, give it the proper formatting.
+						switch (j) {
+							case 1:
+							case 2:
+								// Prepare the Date element.
+								const turnTime = document.createElement("time");
+
+								// Set its datetime attribute.
+								turnTime.setAttribute("datetime", element);
+
+								// Set its display text.
+								turnTime.innerText = new Date(element).toLocaleString();
+
+								// Add the Date element to the table cell.
+								cell.appendChild(turnTime);
+								break;
+
+							case 3:
+								// Prepare the Date element.
+								const shiftDuration = document.createElement("time");
+
+								// Set its datetime attribute.
+								shiftDuration.setAttribute("datetime", element);
+
+								// Set its display text.
+								cell.textContent = transformDuration(element);
+								break;
+
+							case 4:
+								switch (element) {
+									case "Sì":
+										cell.textContent = "⭕️";
+										break;
+
+									case "No":
+										cell.textContent = "❌";
+										break;
+
+									default:
+										cell.textContent = "❓";
+										break;
+								};
+								break;
+
+							default:
+								cell.textContent = element;
+								break;
+						};
+
+						row.appendChild(cell);
+					}
+					tableBody.appendChild(row);
+				}
+
+				// Add the table body to the table.
+				table.appendChild(tableBody);
+			})
+			.catch((error) => {
+				statusMessage.setAttribute("class", "error-message");
+				statusMessage.innerText = error.message;
+			});
+	</script>
+</body>
+
+</html>
