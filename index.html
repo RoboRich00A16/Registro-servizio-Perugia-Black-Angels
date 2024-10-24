@@ -13,18 +13,56 @@
 		h1,
 		h2 {
 			text-align: center;
-		}
-
-		th {
-			cursor: pointer;
+			white-space: normal;
+			word-wrap: break-word;
 		}
 
 		time {
 			font-family: monospace;
 		}
-		
+
 		.error-message {
 			color: crimson;
+		}
+
+		table {
+			border-collapse: collapse;
+			overflow-x: scroll;
+			display: block;
+			border-radius: 12px;
+			border: 2px solid silver;
+		}
+
+
+		th {
+			cursor: pointer;
+			border-bottom: 1px solid silver;
+			color: slategrey;
+		}
+
+		th,
+		td {
+			padding: 8px;
+		}
+
+		tbody>tr:nth-child(odd) {
+			background-color: whitesmoke;
+		}
+
+
+		.collapsed-row {
+			visibility: collapse;
+			display: none;
+		}
+
+		.filter-label {
+			margin-bottom: 20px;
+		}
+
+		.wrapper {
+			max-width: fit-content;
+			width: 100%;
+			margin: auto;
 		}
 	</style>
 </head>
@@ -35,12 +73,24 @@
 
 	<p id="status-message">Caricamento dati…</p>
 
-	<table id="shifts-register"></table>
+	<div class="wrapper">
+		<label class="filter-label">
+			Filtra per agente:
+			<select name="agent-filter" id="agent-select">
+				<option value="*" selected>Chiunque</option>
+			</select>
+		</label>
+
+		<table id="shifts-register"></table>
+	</div>
+
 
 	<script>
 		const url = "https://raw.githubusercontent.com/RoboRich00A16/Registro-servizio-Perugia-Black-Angels/refs/heads/main/Black%20Angels.csv";
 		const statusMessage = document.getElementById("status-message");
+		const agentSelect = document.getElementById("agent-select");
 		const table = document.getElementById("shifts-register");
+		var agents = new Set();
 
 		// This will parse a delimited string into an array of arrays. The default delimiter is the comma, but this can be overriden in the second argument.
 		function CSVToArray(strData, strDelimiter) {
@@ -125,7 +175,7 @@
 
 				let shiftDuration = shiftEnd - shiftStart;
 				let shiftDurationDescription = null;
-				
+
 				// We can safely assume the shift took place in the same timezone.
 				if (shiftDuration > (1000 * 60 * 60 * 24)) {
 					shiftDurationDescription = "Più di un giorno";
@@ -137,7 +187,7 @@
 					shiftDuration = (shiftDuration - s) / 60;
 					const min = shiftDuration % 60;
 					const h = (shiftDuration - min) / 60;
-					
+
 					shiftDurationDescription = `PT${h}H${min}M`;
 				};
 
@@ -170,29 +220,29 @@
 
 			return result.trim();
 		};
-		
+
 		function getCellValue(tr, index) {
 			return tr.children[index].innerText || tr.children[index].textContent;
 		};
-		
+
 		// Returns a function responsible for sorting a specific column index 
 		// (index = columnIndex, desc = descending order?).
-		function comparer(index, desc) { 
-		
-	    	// This is used by the array.sort() function.
-	    	return function(a, b) { 
+		function comparer(index, desc) {
 
-    		    // This is a transient function, that is called straight away. It allows passing in different order of args, based on the ascending/descending order.
-		        return function(v1, v2) {
-		
-		            // sort based on a numeric or localeCompare, based on type.
-		            return (v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2)) 
-		                ? v1 - v2 
-		                : v1.toString().localeCompare(v2);
-		        }(getCellValue(desc ? b : a, index), getCellValue(desc ? a : b, index));
-		    };
+			// This is used by the array.sort() function.
+			return function (a, b) {
+
+				// This is a transient function, that is called straight away. It allows passing in different order of args, based on the ascending/descending order.
+				return function (v1, v2) {
+
+					// sort based on a numeric or localeCompare, based on type.
+					return (v1 !== '' && v2 !== '' && !isNaN(v1) && !isNaN(v2))
+						? v1 - v2
+						: v1.toString().localeCompare(v2);
+				}(getCellValue(desc ? b : a, index), getCellValue(desc ? a : b, index));
+			};
 		};
-		
+
 		fetch(url)
 			.then((response) => {
 				if (!response.ok) {
@@ -208,6 +258,7 @@
 				// Prepare the table elements.
 				const tableHead = document.createElement("thead");
 				const tableBody = document.createElement("tbody");
+				const tableFoot = document.createElement("tfoot");
 
 				// Get the array of values from the recieved CSV.
 				const CSVArray = CSVToArray(CSVtext);
@@ -251,6 +302,18 @@
 
 						// Depending on the type of column, give it the proper formatting.
 						switch (j) {
+							case 0:
+								// Add the agent to the options’ set.
+								agents.add(element);
+
+								// Add the agent to the table.
+								cell.textContent = element;
+
+								// Bind the row to the agent, so it can be filtered.
+								row.setAttribute("class", element.toLowerCase().replace(" ", "-"));
+
+								break;
+
 							case 1:
 							case 2:
 								// Prepare the Date element.
@@ -305,6 +368,43 @@
 
 				// Add the table body to the table.
 				table.appendChild(tableBody);
+
+				// Add a table footer.
+				// const footRows = document.createElement("tr");
+				// for (let i = 0; i < CSVArray[0].length; i++) {
+				// 	const cell = document.createElement("td");
+				// 	switch (i) {
+				// 		case 0:
+				// 			cell.textContent = `${agents.length} agent${agents.length === 1 ? "e" : "i"}`;
+				// 			break;
+
+				// 		default:
+				// 			break;
+				// 	};
+				// 	footRows.appendChild(cell);
+				// }
+
+				// Populate the select field.
+				agents.forEach((agent) => {
+					const option = document.createElement("option");
+					option.setAttribute("value", agent.toLowerCase().replace(" ", "-"));
+					option.textContent = agent;
+					agentSelect.appendChild(option);
+				});
+
+				// Filter the table when a new agent is set.
+				agentSelect.addEventListener("input", () => {
+					const selectedAgent = document.getElementById("agent-select").value;
+					const tableBodyRows = document.getElementsByTagName("tbody")[0].children;
+
+					Array.from(tableBodyRows).forEach((row) => {
+						if (selectedAgent === "*" || row.classList.contains(selectedAgent)) {
+							row.classList.remove("collapsed-row");
+						} else {
+							row.classList.add("collapsed-row");
+						};
+					});
+				});
 			})
 			.catch((error) => {
 				statusMessage.setAttribute("class", "error-message");
